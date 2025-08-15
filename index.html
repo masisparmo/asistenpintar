@@ -208,8 +208,6 @@
     <script src="https://apis.google.com/js/api.js"></script>
     <script>
         // --- State (Global) ---
-        let gapiInited = false;
-        let gisInited = false;
         let tokenClient;
         let geminiApiKey = localStorage.getItem('geminiApiKey');
         let spreadsheetId = null;
@@ -225,21 +223,7 @@
         const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest", "https://www.googleapis.com/discovery/v1/apis/sheets/v4/rest", "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
         const SCOPES = "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file";
         const SPREADSHEET_NAME = 'AsistenPintar_DatabaseIde';
-
-        /**
-         * Callback function for Google Identity Services library.
-         */
-        function gisInit() {
-            // The check for placeholder keys is now done in DOMContentLoaded
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: '', // Will be defined dynamically on click
-            });
-            gisInited = true;
-            document.dispatchEvent(new Event('gisLoaded'));
-        }
-
+        
     document.addEventListener('DOMContentLoaded', () => {
         // --- DOM Elements ---
         const configWarning = document.getElementById('config-warning');
@@ -267,25 +251,86 @@
         const authHelpIcon = document.getElementById('auth-help-icon');
         const authHelpPopup = document.getElementById('auth-help-popup');
 
-        // --- Initialization ---
-        function initializeApp() {
-            // CRITICAL: Check for placeholder keys first.
+        // --- Helper Functions ---
+        function showToast(message, type = 'success') {
+            toastMessage.textContent = message;
+            toast.className = `fixed bottom-5 right-5 text-white py-2 px-5 rounded-lg shadow-lg transition-opacity duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 5000); // Increased duration for error messages
+        }
+        
+        function showLoader(text = 'Memproses...') {
+            loaderText.textContent = text;
+            loaderModal.classList.remove('hidden');
+        }
+
+        function hideLoader() {
+            loaderModal.classList.add('hidden');
+        }
+
+        // --- Robust Initialization Flow ---
+        function startApp() {
             if (API_KEY === 'YOUR_API_KEY' || CLIENT_ID.includes('YOUR_CLIENT_ID')) {
                 configWarning.style.display = 'block';
-                console.error("PENTING: API_KEY atau CLIENT_ID belum diatur.");
-                return; // Stop the app from initializing further.
+                return;
             }
-
-            checkApiKey(); // For Gemini
+            checkApiKey();
             gapi.load('client', initializeGapiClient);
+        }
 
-            // FIX: Add a timeout to check if Google's libraries loaded successfully.
-            setTimeout(() => {
-                if (!gapiInited || !gisInited) {
-                    console.error("Gagal memuat Google API. Periksa koneksi atau konfigurasi API Key/Client ID Anda.");
-                    showToast("Gagal memuat Google API. Coba muat ulang halaman.", "error");
+        async function initializeGapiClient() {
+            try {
+                await gapi.client.init({
+                    apiKey: API_KEY,
+                    discoveryDocs: DISCOVERY_DOCS,
+                });
+                console.log("GAPI client initialized.");
+                loadGisScript();
+            } catch (error) {
+                console.error("Error initializing GAPI client:", error);
+                // FIX: More robust error handling to prevent crash and give better feedback.
+                let detailedMessage = "Periksa API_KEY Anda dan pastikan domain Anda diizinkan di Google Cloud Console.";
+                if (error && error.body) {
+                    try {
+                        const errorDetails = JSON.parse(error.body);
+                        if (errorDetails.error && errorDetails.error.message) {
+                            detailedMessage = errorDetails.error.message;
+                        }
+                    } catch (e) {
+                        // Body is not a valid JSON, use the generic message.
+                    }
                 }
-            }, 10000); // 10 seconds timeout
+                showToast(`Gagal menginisialisasi Google API. ${detailedMessage}`, "error");
+            }
+        }
+
+        function loadGisScript() {
+            const script = document.createElement('script');
+            script.src = 'https://accounts.google.com/gsi/client';
+            script.async = true;
+            script.defer = true;
+            script.onload = initializeGisClient;
+            script.onerror = () => {
+                showToast("Gagal memuat skrip otentikasi Google.", "error");
+            };
+            document.body.appendChild(script);
+        }
+
+        function initializeGisClient() {
+            try {
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: CLIENT_ID,
+                    scope: SCOPES,
+                    callback: '', 
+                });
+                console.log("GIS client initialized.");
+                authorizeButton.disabled = false;
+            } catch (error) {
+                console.error("Error initializing GIS client:", error);
+                showToast("Gagal menginisialisasi otentikasi. Periksa CLIENT_ID Anda.", "error");
+            }
         }
 
         function checkApiKey() {
@@ -305,46 +350,6 @@
                 showToast('API Key tidak boleh kosong.', 'error');
             }
         });
-        
-        function showToast(message, type = 'success') {
-            toastMessage.textContent = message;
-            toast.className = `fixed bottom-5 right-5 text-white py-2 px-5 rounded-lg shadow-lg transition-opacity duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
-            toast.classList.remove('hidden');
-            setTimeout(() => {
-                toast.classList.add('hidden');
-            }, 4000);
-        }
-        
-        function showLoader(text = 'Memproses...') {
-            loaderText.textContent = text;
-            loaderModal.classList.remove('hidden');
-        }
-
-        function hideLoader() {
-            loaderModal.classList.add('hidden');
-        }
-
-        async function initializeGapiClient() {
-            try {
-                await gapi.client.init({
-                    apiKey: API_KEY,
-                    discoveryDocs: DISCOVERY_DOCS,
-                });
-                gapiInited = true;
-                maybeEnableButtons();
-            } catch (error) {
-                console.error("Error initializing GAPI client:", error);
-                showToast("Gagal menginisialisasi Google API. Periksa API Key Anda.", "error");
-            }
-        }
-
-        function maybeEnableButtons() {
-            if (gapiInited && gisInited) {
-                authorizeButton.disabled = false;
-            }
-        }
-        
-        document.addEventListener('gisLoaded', maybeEnableButtons);
 
         authorizeButton.addEventListener('click', () => {
             tokenClient.callback = async (resp) => {
@@ -380,7 +385,6 @@
                 authorizeButton.classList.add('hidden');
                 signoutButton.classList.remove('hidden');
                 authStatus.textContent = 'Terhubung dengan Akun Google.';
-                // FIX: Enable save buttons on successful sign-in
                 simpanJadwalBtn.disabled = false;
                 simpanIdeBtn.disabled = false;
             } else {
@@ -389,7 +393,6 @@
                 authStatus.textContent = 'Silakan hubungkan akun Google Anda untuk menggunakan semua fitur.';
                 jadwalList.innerHTML = '<tr><td colspan="5" class="text-center p-4">Hubungkan akun Google untuk melihat jadwal.</td></tr>';
                 ideList.innerHTML = '<p class="text-center col-span-full">Hubungkan akun Google untuk melihat ide.</p>';
-                // FIX: Disable save buttons on sign-out
                 simpanJadwalBtn.disabled = true;
                 simpanIdeBtn.disabled = true;
             }
@@ -771,9 +774,9 @@
         });
 
         // --- Start App ---
-        initializeApp();
+        startApp();
     });
     </script>
-    <script async defer src="https://accounts.google.com/gsi/client" onload="gisInit"></script>
+    
 </body>
 </html>
