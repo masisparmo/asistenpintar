@@ -557,9 +557,7 @@
             recognition.lang = 'id-ID';
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
-            // FIX: Allow for longer pauses by removing the automatic stop on speechend
-            // recognition.continuous = true; // This can be complex to manage, removing onspeechend is simpler.
-
+            
             recognition.onstart = () => {
                 showToast('Mendengarkan...', 'success');
             };
