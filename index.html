@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asisten Pintar - Powered by Gemini AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .tab-active {
+            border-bottom-color: #4f46e5;
+            color: #4f46e5;
+            font-weight: 600;
+        }
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .loader {
+            border-top-color: #4f46e5;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <!-- Main Container -->
+    <div class="container mx-auto p-4 md:p-6 max-w-7xl">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-gray-900">Asisten Pintar <span class="text-indigo-600">AI</span></h1>
+            <p class="text-gray-600 mt-2">Atur jadwal dan catat ide Anda dengan kekuatan Gemini AI.</p>
+        </header>
+
+        <!-- Auth Button -->
+        <div class="flex justify-center mb-6">
+            <button id="authorize_button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 disabled:bg-gray-400" disabled>
+                <i class="fab fa-google mr-2"></i>Hubungkan ke Akun Google
+            </button>
+            <button id="signout_button" class="hidden bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition duration-300 ml-4">
+                <i class="fas fa-sign-out-alt mr-2"></i>Keluar
+            </button>
+        </div>
+        <p id="auth_status" class="text-center text-sm text-gray-500 mb-6"></p>
+
+        <!-- Tabs -->
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="flex space-x-8" aria-label="Tabs">
+                <button id="tab-jadwal" class="py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 tab-active">
+                    <i class="fas fa-calendar-alt mr-2"></i>Pembuat Jadwal
+                </button>
+                <button id="tab-ide" class="py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    <i class="fas fa-lightbulb mr-2"></i>Pencatat Ide
+                </button>
+            </nav>
+        </div>
+
+        <!-- Content Area -->
+        <main id="content">
+            <!-- Jadwal Section -->
+            <div id="jadwal-content">
+                <!-- Jadwal Input Section -->
+                <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                    <h2 class="text-2xl font-semibold mb-4">Buat Jadwal Baru</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input id="jadwal-nama" type="text" placeholder="Nama Acara/Meeting" class="w-full p-3 border border-gray-300 rounded-lg">
+                        <input id="jadwal-tanggal" type="date" class="w-full p-3 border border-gray-300 rounded-lg">
+                        <input id="jadwal-jam" type="time" class="w-full p-3 border border-gray-300 rounded-lg">
+                        <input id="jadwal-tempat" type="text" placeholder="Tempat" class="w-full p-3 border border-gray-300 rounded-lg">
+                    </div>
+                    <textarea id="jadwal-catatan" placeholder="Catatan/Notes..." class="w-full mt-4 p-3 border border-gray-300 rounded-lg" rows="3"></textarea>
+                    
+                    <div class="mt-4">
+                        <h3 class="font-medium mb-2">Input Cerdas (AI)</h3>
+                        <div class="relative">
+                            <input id="ai-jadwal-input" type="text" placeholder="Contoh: Meeting dengan klien besok jam 10 pagi di kantor" class="w-full p-3 border border-gray-300 rounded-lg pr-24">
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 space-x-2">
+                                <button id="voice-jadwal-btn" class="text-gray-500 hover:text-indigo-600"><i class="fas fa-microphone"></i></button>
+                                <label for="image-jadwal-input" class="cursor-pointer text-gray-500 hover:text-indigo-600"><i class="fas fa-camera"></i></label>
+                                <input type="file" id="image-jadwal-input" class="hidden" accept="image/*">
+                            </div>
+                        </div>
+                         <button id="process-ai-jadwal-btn" class="mt-2 w-full bg-indigo-500 text-white py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300">
+                            <i class="fas fa-cogs mr-2"></i>Proses dengan AI
+                        </button>
+                    </div>
+
+                    <button id="simpan-jadwal-btn" class="mt-6 w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-green-600 transition duration-300">
+                        <i class="fas fa-save mr-2"></i>Simpan Jadwal
+                    </button>
+                </div>
+
+                <!-- Daftar Jadwal Section -->
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4">Daftar Acara/Meeting</h2>
+                    <div class="border-b border-gray-200 mb-4">
+                        <nav class="flex space-x-4 -mb-px" aria-label="Tabs">
+                            <button class="jadwal-filter-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-indigo-600 border-indigo-500" data-period="today">Hari Ini</button>
+                            <button class="jadwal-filter-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300" data-period="week">Pekan Ini</button>
+                            <button class="jadwal-filter-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300" data-period="month">Bulan Ini</button>
+                            <button class="jadwal-filter-btn whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300" data-period="year">Tahun Ini</button>
+                        </nav>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acara</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal & Waktu</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tempat</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catatan</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="jadwal-list" class="bg-white divide-y divide-gray-200">
+                                <!-- Jadwal items will be injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ide Section -->
+            <div id="ide-content" class="hidden">
+                 <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+                    <h2 class="text-2xl font-semibold mb-4">Catat Ide Baru</h2>
+                    <textarea id="ide-input" placeholder="Tuliskan ide brilian Anda di sini..." class="w-full p-3 border border-gray-300 rounded-lg" rows="4"></textarea>
+                    <input id="ide-kategori" type="text" placeholder="Kategori/Keyword (pisahkan dengan koma)" class="w-full mt-4 p-3 border border-gray-300 rounded-lg">
+                    
+                    <div class="mt-4 flex items-center space-x-4">
+                        <button id="voice-ide-btn" class="flex-1 text-gray-600 bg-gray-200 hover:bg-gray-300 py-2 px-4 rounded-lg transition duration-300"><i class="fas fa-microphone mr-2"></i>Rekam Suara</button>
+                        <label for="image-ide-input" class="flex-1 text-center cursor-pointer text-gray-600 bg-gray-200 hover:bg-gray-300 py-2 px-4 rounded-lg transition duration-300"><i class="fas fa-camera mr-2"></i>Scan/Upload</label>
+                        <input type="file" id="image-ide-input" class="hidden" accept="image/*">
+                    </div>
+
+                    <button id="simpan-ide-btn" class="mt-6 w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-green-600 transition duration-300">
+                        <i class="fas fa-save mr-2"></i>Simpan Ide
+                    </button>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4">Database Ide</h2>
+                    <div id="ide-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Ide cards will be injected here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- API Key Modal -->
+    <div id="api-key-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+        <div class="bg-white rounded-lg shadow-xl p-8 max-w-lg w-full">
+            <h2 class="text-2xl font-bold mb-4">Masukkan Gemini API Key Anda</h2>
+            <p class="text-gray-600 mb-4">Untuk menggunakan fitur AI, Anda memerlukan Gemini API Key. Dapatkan kunci Anda secara gratis dari Google AI Studio.</p>
+            <ol class="list-decimal list-inside mb-4 text-sm text-gray-600">
+                <li>Buka <a href="https://aistudio.google.com/" target="_blank" class="text-indigo-600 hover:underline">Google AI Studio</a>.</li>
+                <li>Login dengan akun Google Anda.</li>
+                <li>Klik tombol "Get API key".</li>
+                <li>Buat kunci API baru di proyek Anda.</li>
+                <li>Salin kunci API yang baru dibuat dan tempel di bawah ini.</li>
+            </ol>
+            <input type="password" id="api-key-input" class="w-full p-3 border border-gray-300 rounded-lg mb-4" placeholder="Tempel API Key di sini">
+            <button id="save-api-key-btn" class="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300">Simpan & Mulai</button>
+        </div>
+    </div>
+
+    <!-- Loader Modal -->
+    <div id="loader-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+        <div class="bg-white rounded-lg p-8 flex flex-col items-center">
+            <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24 mb-4"></div>
+            <p id="loader-text" class="text-lg font-medium text-gray-700">Memproses...</p>
+        </div>
+    </div>
+    
+    <!-- Notification Toast -->
+    <div id="toast" class="hidden fixed bottom-5 right-5 bg-gray-800 text-white py-2 px-5 rounded-lg shadow-lg transition-opacity duration-300">
+        <p id="toast-message"></p>
+    </div>
+
+
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script>
+        // --- State (Global) ---
+        let gapiInited = false;
+        let gisInited = false;
+        let tokenClient;
+        let geminiApiKey = localStorage.getItem('geminiApiKey');
+        let spreadsheetId = null;
+
+        // --- Config (Global) ---
+        // PENTING: Ganti nilai placeholder di bawah ini dengan kredensial Anda sendiri dari Google Cloud Console.
+        const CLIENT_ID = 'YOUR_CLIENT_ID'; 
+        const API_KEY = 'YOUR_API_KEY'; 
+        const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest", "https://www.googleapis.com/discovery/v1/apis/sheets/v4/rest", "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
+        const SCOPES = "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file";
+        const SPREADSHEET_NAME = 'AsistenPintar_DatabaseIde';
+
+        /**
+         * Callback function for Google Identity Services library.
+         * This function is now in the global scope to be accessible by the script's onload attribute.
+         */
+        function gisInit() {
+            if (CLIENT_ID === 'YOUR_CLIENT_ID') {
+                console.error("PENTING: CLIENT_ID belum diatur. Silakan konfigurasikan di dalam kode.");
+                // We can't show a toast here yet as the DOM might not be ready.
+                // The check in initializeGapiClient will handle user notification.
+                return;
+            }
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: '', // Will be defined dynamically on click
+            });
+            gisInited = true;
+            document.dispatchEvent(new Event('gisLoaded'));
+        }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- DOM Elements ---
+        const apiKeyModal = document.getElementById('api-key-modal');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+        const loaderModal = document.getElementById('loader-modal');
+        const loaderText = document.getElementById('loader-text');
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toast-message');
+
+        const authorizeButton = document.getElementById('authorize_button');
+        const signoutButton = document.getElementById('signout_button');
+        const authStatus = document.getElementById('auth_status');
+
+        const tabJadwal = document.getElementById('tab-jadwal');
+        const tabIde = document.getElementById('tab-ide');
+        const jadwalContent = document.getElementById('jadwal-content');
+        const ideContent = document.getElementById('ide-content');
+        
+        const aiJadwalInput = document.getElementById('ai-jadwal-input');
+        const processAiJadwalBtn = document.getElementById('process-ai-jadwal-btn');
+        const simpanJadwalBtn = document.getElementById('simpan-jadwal-btn');
+        const jadwalList = document.getElementById('jadwal-list');
+        const jadwalFilterBtns = document.querySelectorAll('.jadwal-filter-btn');
+
+        const simpanIdeBtn = document.getElementById('simpan-ide-btn');
+        const ideList = document.getElementById('ide-list');
+
+        // --- Initialization ---
+        function initializeApp() {
+            checkApiKey(); // For Gemini
+            gapi.load('client', initializeGapiClient);
+            // gisInit() is now called by the script's onload attribute, not here.
+        }
+
+        function checkApiKey() {
+            if (!geminiApiKey) {
+                apiKeyModal.classList.remove('hidden');
+            }
+        }
+
+        saveApiKeyBtn.addEventListener('click', () => {
+            const key = apiKeyInput.value.trim();
+            if (key) {
+                localStorage.setItem('geminiApiKey', key);
+                geminiApiKey = key;
+                apiKeyModal.classList.add('hidden');
+                showToast('API Key berhasil disimpan.');
+            } else {
+                showToast('API Key tidak boleh kosong.', 'error');
+            }
+        });
+        
+        // --- Toast Notification ---
+        function showToast(message, type = 'success') {
+            toastMessage.textContent = message;
+            toast.className = `fixed bottom-5 right-5 text-white py-2 px-5 rounded-lg shadow-lg transition-opacity duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 4000);
+        }
+        
+        // --- Loader ---
+        function showLoader(text = 'Memproses...') {
+            loaderText.textContent = text;
+            loaderModal.classList.remove('hidden');
+        }
+
+        function hideLoader() {
+            loaderModal.classList.add('hidden');
+        }
+
+        // --- Google API Initialization ---
+        async function initializeGapiClient() {
+            if (API_KEY === 'YOUR_API_KEY' || CLIENT_ID === 'YOUR_CLIENT_ID') {
+                showToast('Harap konfigurasikan Google CLIENT_ID & API_KEY Anda di dalam kode.', 'error');
+                console.error("PENTING: API_KEY atau CLIENT_ID belum diatur.");
+                return;
+            }
+            await gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: DISCOVERY_DOCS,
+            });
+            gapiInited = true;
+            maybeEnableButtons();
+        }
+
+        function maybeEnableButtons() {
+            if (gapiInited && gisInited) {
+                authorizeButton.disabled = false;
+            }
+        }
+        
+        // Listen for the custom event that gisInit will fire
+        document.addEventListener('gisLoaded', maybeEnableButtons);
+
+        // --- Authentication ---
+        authorizeButton.addEventListener('click', () => {
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) {
+                    showToast('Otentikasi gagal. Silakan coba lagi.', 'error');
+                    console.error(resp);
+                    return;
+                }
+                updateUiOnAuth(true);
+                await onAuthenticated();
+            };
+
+            if (gapi.client.getToken() === null) {
+                tokenClient.requestAccessToken({ prompt: 'consent' });
+            } else {
+                tokenClient.requestAccessToken({ prompt: '' });
+            }
+        });
+
+        signoutButton.addEventListener('click', () => {
+            const token = gapi.client.getToken();
+            if (token !== null) {
+                google.accounts.oauth2.revoke(token.access_token, () => {
+                    gapi.client.setToken('');
+                    updateUiOnAuth(false);
+                });
+            }
+        });
+
+        function updateUiOnAuth(isSignedIn) {
+            if (isSignedIn) {
+                authorizeButton.classList.add('hidden');
+                signoutButton.classList.remove('hidden');
+                authStatus.textContent = 'Terhubung dengan Akun Google.';
+            } else {
+                authorizeButton.classList.remove('hidden');
+                signoutButton.classList.add('hidden');
+                authStatus.textContent = 'Silakan hubungkan akun Google Anda untuk menggunakan semua fitur.';
+                jadwalList.innerHTML = '<tr><td colspan="5" class="text-center p-4">Hubungkan akun Google untuk melihat jadwal.</td></tr>';
+                ideList.innerHTML = '<p class="text-center col-span-full">Hubungkan akun Google untuk melihat ide.</p>';
+            }
+        }
+
+        async function onAuthenticated() {
+            showToast('Berhasil terhubung dengan Google!');
+            await findOrCreateSpreadsheet(); // Do this first to get spreadsheetId
+            await loadJadwal('today');
+            await loadIde();
+        }
+
+        // --- Tab Navigation ---
+        tabJadwal.addEventListener('click', () => switchTab('jadwal'));
+        tabIde.addEventListener('click', () => switchTab('ide'));
+
+        function switchTab(tabName) {
+            if (tabName === 'jadwal') {
+                jadwalContent.classList.remove('hidden');
+                ideContent.classList.add('hidden');
+                tabJadwal.classList.add('tab-active');
+                tabIde.classList.remove('tab-active');
+            } else {
+                jadwalContent.classList.add('hidden');
+                ideContent.classList.remove('hidden');
+                tabJadwal.classList.remove('tab-active');
+                tabIde.classList.add('tab-active');
+            }
+        }
+
+        // --- Gemini AI Integration ---
+        async function callGemini(prompt, imageBase64 = null) {
+            if (!geminiApiKey) {
+                showToast('Silakan masukkan Gemini API Key Anda terlebih dahulu.', 'error');
+                checkApiKey();
+                return null;
+            }
+            showLoader('AI sedang berpikir...');
+
+            const model = imageBase64 ? 'gemini-pro-vision' : 'gemini-pro';
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+            
+            let parts = [{ text: prompt }];
+            if (imageBase64) {
+                parts.push({
+                    inline_data: {
+                        mime_type: "image/jpeg",
+                        data: imageBase64
+                    }
+                });
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts }] })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error.message);
+                }
+
+                const result = await response.json();
+                return result.candidates[0].content.parts[0].text;
+            } catch (error) {
+                console.error('Gemini API Error:', error);
+                showToast(`Error Gemini AI: ${error.message}`, 'error');
+                return null;
+            } finally {
+                hideLoader();
+            }
+        }
+        
+        // --- Jadwal Feature ---
+        processAiJadwalBtn.addEventListener('click', async () => {
+             const userInput = aiJadwalInput.value.trim();
+             if (!userInput) {
+                 showToast('Input AI tidak boleh kosong.', 'error');
+                 return;
+             }
+             const prompt = `
+                Analisis teks berikut untuk membuat jadwal acara dan ekstrak informasinya ke dalam format JSON. 
+                Teks: "${userInput}"
+                
+                Format JSON yang diharapkan:
+                {
+                  "nama": "nama acara",
+                  "tanggal": "YYYY-MM-DD",
+                  "jam": "HH:MM",
+                  "tempat": "lokasi acara",
+                  "catatan": "catatan tambahan jika ada"
+                }
+
+                Aturan Penting:
+                - Tanggal hari ini adalah ${new Date().toISOString().slice(0,10)}.
+                - Terjemahkan kata-kata relatif seperti 'besok', 'lusa', 'sabtu depan', 'minggu depan', 'bulan depan' menjadi format tanggal YYYY-MM-DD yang spesifik.
+                - Jika tahun tidak disebutkan, asumsikan tahun ini.
+                - Jika ada informasi yang tidak ditemukan, isi dengan string kosong "".
+             `;
+             const resultText = await callGemini(prompt);
+             if (resultText) {
+                 try {
+                     const cleanedJsonString = resultText.replace(/```json|```/g, '').trim();
+                     const data = JSON.parse(cleanedJsonString);
+                     document.getElementById('jadwal-nama').value = data.nama || '';
+                     document.getElementById('jadwal-tanggal').value = data.tanggal || '';
+                     document.getElementById('jadwal-jam').value = data.jam || '';
+                     document.getElementById('jadwal-tempat').value = data.tempat || '';
+                     document.getElementById('jadwal-catatan').value = data.catatan || '';
+                     showToast('Data berhasil diisi oleh AI.');
+                 } catch (e) {
+                     console.error("Error parsing AI response:", e);
+                     showToast('Gagal memproses respons AI. Coba lagi.', 'error');
+                 }
+             }
+        });
+
+        simpanJadwalBtn.addEventListener('click', async () => {
+            const summary = document.getElementById('jadwal-nama').value;
+            const location = document.getElementById('jadwal-tempat').value;
+            const description = document.getElementById('jadwal-catatan').value;
+            const date = document.getElementById('jadwal-tanggal').value;
+            const time = document.getElementById('jadwal-jam').value;
+
+            if (!summary || !date || !time) {
+                showToast('Nama acara, tanggal, dan jam wajib diisi.', 'error');
+                return;
+            }
+
+            const startDateTime = new Date(`${date}T${time}`);
+            const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); // Default 1 hour duration
+
+            const event = {
+                'summary': summary,
+                'location': location,
+                'description': description,
+                'start': {
+                    'dateTime': startDateTime.toISOString(),
+                    'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+                },
+                'end': {
+                    'dateTime': endDateTime.toISOString(),
+                    'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+                },
+            };
+
+            try {
+                showLoader('Menyimpan jadwal...');
+                await gapi.client.calendar.events.insert({
+                    'calendarId': 'primary',
+                    'resource': event,
+                });
+                showToast('Jadwal berhasil disimpan ke Google Calendar!');
+                document.getElementById('jadwal-nama').value = '';
+                document.getElementById('jadwal-tempat').value = '';
+                document.getElementById('jadwal-catatan').value = '';
+                document.getElementById('jadwal-tanggal').value = '';
+                document.getElementById('jadwal-jam').value = '';
+                aiJadwalInput.value = '';
+                await loadJadwal('today');
+            } catch (error) {
+                console.error('Error saving event:', error);
+                showToast('Gagal menyimpan jadwal.', 'error');
+            } finally {
+                hideLoader();
+            }
+        });
+
+        async function loadJadwal(period) {
+            if (!gapi.client.getToken()) return;
+            showLoader('Memuat jadwal...');
+            jadwalList.innerHTML = '';
+
+            const now = new Date();
+            let timeMin, timeMax;
+
+            switch (period) {
+                case 'week':
+                    timeMin = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
+                    timeMax = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay() + 7).toISOString();
+                    break;
+                case 'month':
+                    timeMin = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+                    timeMax = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+                    break;
+                case 'year':
+                    timeMin = new Date(now.getFullYear(), 0, 1).toISOString();
+                    timeMax = new Date(now.getFullYear() + 1, 0, 1).toISOString();
+                    break;
+                case 'today':
+                default:
+                    timeMin = new Date(now.setHours(0, 0, 0, 0)).toISOString();
+                    timeMax = new Date(now.setHours(23, 59, 59, 999)).toISOString();
+                    break;
+            }
+
+            try {
+                const response = await gapi.client.calendar.events.list({
+                    'calendarId': 'primary',
+                    'timeMin': timeMin,
+                    'timeMax': timeMax,
+                    'showDeleted': false,
+                    'singleEvents': true,
+                    'orderBy': 'startTime',
+                });
+
+                const events = response.result.items;
+                if (events && events.length > 0) {
+                    events.forEach(event => {
+                        const start = event.start.dateTime || event.start.date;
+                        const date = new Date(start).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                        const time = event.start.dateTime ? new Date(start).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Seharian';
+                        
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">${event.summary || '(Tanpa Judul)'}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">${date}</div>
+                                <div class="text-sm text-gray-500">${time}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${event.location || '-'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${event.description || '-'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <a href="#" class="text-indigo-600 hover:text-indigo-900">Edit</a>
+                                <a href="#" class="ml-4 text-red-600 hover:text-red-900">Hapus</a>
+                            </td>
+                        `;
+                        jadwalList.appendChild(tr);
+                    });
+                } else {
+                    jadwalList.innerHTML = '<tr><td colspan="5" class="text-center p-4">Tidak ada acara pada periode ini.</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error fetching events:', error);
+                showToast('Gagal memuat jadwal.', 'error');
+                jadwalList.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-red-500">Gagal memuat jadwal.</td></tr>';
+            } finally {
+                hideLoader();
+            }
+        }
+        
+        jadwalFilterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                jadwalFilterBtns.forEach(b => {
+                    b.classList.remove('text-indigo-600', 'border-indigo-500');
+                    b.classList.add('text-gray-500', 'border-transparent');
+                });
+                btn.classList.add('text-indigo-600', 'border-indigo-500');
+                btn.classList.remove('text-gray-500', 'border-transparent');
+                loadJadwal(btn.dataset.period);
+            });
+        });
+
+        // --- Ide Feature ---
+        async function findOrCreateSpreadsheet() {
+            if (!gapi.client.getToken()) return;
+            showLoader('Menyiapkan database ide...');
+            try {
+                const response = await gapi.client.drive.files.list({
+                    q: `mimeType='application/vnd.google-apps.spreadsheet' and name='${SPREADSHEET_NAME}' and trashed=false`,
+                    fields: 'files(id, name)',
+                });
+                if (response.result.files.length > 0) {
+                    spreadsheetId = response.result.files[0].id;
+                } else {
+                    const spreadsheet = {
+                        properties: { title: SPREADSHEET_NAME }
+                    };
+                    const createResponse = await gapi.client.sheets.spreadsheets.create({ resource: spreadsheet });
+                    spreadsheetId = createResponse.result.spreadsheetId;
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: spreadsheetId,
+                        range: 'A1:D1',
+                        valueInputOption: 'RAW',
+                        resource: {
+                            values: [['ID', 'Ide', 'Kategori', 'Timestamp']]
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error finding/creating spreadsheet:', error);
+                showToast('Gagal menyiapkan database ide.', 'error');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        simpanIdeBtn.addEventListener('click', async () => {
+            if (!spreadsheetId) {
+                showToast('Database ide belum siap. Coba lagi.', 'error');
+                await findOrCreateSpreadsheet();
+                return;
+            }
+            const ide = document.getElementById('ide-input').value.trim();
+            const kategori = document.getElementById('ide-kategori').value.trim();
+            if (!ide) {
+                showToast('Ide tidak boleh kosong.', 'error');
+                return;
+            }
+
+            const values = [[
+                `ID-${Date.now()}`,
+                ide,
+                kategori,
+                new Date().toISOString()
+            ]];
+
+            try {
+                showLoader('Menyimpan ide...');
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: spreadsheetId,
+                    range: 'A:D',
+                    valueInputOption: 'USER_ENTERED',
+                    resource: { values: values }
+                });
+                showToast('Ide berhasil disimpan!');
+                document.getElementById('ide-input').value = '';
+                document.getElementById('ide-kategori').value = '';
+                await loadIde();
+            } catch (error) {
+                console.error('Error saving idea:', error);
+                showToast('Gagal menyimpan ide.', 'error');
+            } finally {
+                hideLoader();
+            }
+        });
+
+        async function loadIde() {
+            if (!spreadsheetId) return;
+            showLoader('Memuat ide...');
+            ideList.innerHTML = '';
+            try {
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: spreadsheetId,
+                    range: 'A2:D', // Start from row 2 to skip header
+                });
+                const rows = response.result.values || [];
+                if (rows.length > 0) {
+                    rows.reverse().forEach(row => { // Show newest first
+                        const [id, ide, kategori, timestamp] = row;
+                        if (!ide) return; // Skip empty rows
+                        const card = document.createElement('div');
+                        card.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col';
+                        card.innerHTML = `
+                            <p class="text-gray-800 mb-3 flex-grow">${ide}</p>
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                ${kategori ? kategori.split(',').map(k => `<span class="bg-indigo-100 text-indigo-800 text-xs font-medium px-2.5 py-0.5 rounded-full">${k.trim()}</span>`).join('') : ''}
+                            </div>
+                            <div class="flex justify-between items-center text-xs text-gray-500 pt-2 border-t">
+                                <span>${new Date(timestamp).toLocaleString('id-ID')}</span>
+                                <div class="space-x-3">
+                                    <button class="hover:text-indigo-600" title="Kembangkan dengan AI"><i class="fas fa-magic"></i></button>
+                                    <button class="hover:text-blue-600" title="Edit"><i class="fas fa-edit"></i></button>
+                                    <button class="hover:text-red-600" title="Hapus"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>
+                        `;
+                        ideList.appendChild(card);
+                    });
+                } else {
+                    ideList.innerHTML = '<p class="text-center col-span-full">Belum ada ide yang tersimpan.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading ideas:', error);
+                showToast('Gagal memuat ide.', 'error');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        // --- Start App ---
+        initializeApp();
+    });
+    </script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisInit"></script>
+</body>
+</html>
