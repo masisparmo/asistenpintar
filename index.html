@@ -467,9 +467,11 @@
                 checkApiKey();
                 return null;
             }
-            showLoader('AI sedang memproses gambar...');
-            const model = imageBase64 ? 'gemini-pro-vision' : 'gemini-pro';
+            showLoader('AI sedang memproses...');
+            // FIX: Use the correct model name for vision capabilities.
+            const model = imageBase64 ? 'gemini-1.5-flash-latest' : 'gemini-pro';
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
+            
             let parts = [{ text: prompt }];
             if (imageBase64) {
                 parts.push({ inline_data: { mime_type: "image/jpeg", data: imageBase64 } });
@@ -497,7 +499,7 @@
         
         // --- AI Input Handlers ---
 
-        function startSpeechRecognition(targetInput) {
+        function startSpeechRecognition(targetInput, shouldProcessForSchedule) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
                 showToast('Browser Anda tidak mendukung pengenalan suara.', 'error');
@@ -517,6 +519,10 @@
                 const speechResult = event.results[0][0].transcript;
                 targetInput.value = speechResult;
                 showToast('Transkripsi berhasil.', 'success');
+                // FIX: Automatically process the result for the scheduler
+                if (shouldProcessForSchedule) {
+                    processAndFillSchedule(speechResult);
+                }
             };
 
             recognition.onspeechend = () => {
@@ -530,7 +536,7 @@
             recognition.start();
         }
 
-        async function handleImageUpload(file, targetInput) {
+        async function handleImageUpload(file, targetInput, shouldProcessForSchedule) {
             if (!file) return;
             if (!geminiApiKey) {
                 showToast('Silakan masukkan Gemini API Key Anda terlebih dahulu.', 'error');
@@ -546,29 +552,32 @@
                 if (transcribedText) {
                     targetInput.value = transcribedText;
                     showToast('Gambar berhasil ditranskripsi oleh AI.', 'success');
+                    // FIX: Automatically process the result for the scheduler
+                    if (shouldProcessForSchedule) {
+                        processAndFillSchedule(transcribedText);
+                    }
                 }
             };
             reader.readAsDataURL(file);
         }
 
-        voiceJadwalBtn.addEventListener('click', () => startSpeechRecognition(aiJadwalInput));
-        scanJadwalInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], aiJadwalInput));
-        uploadJadwalInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], aiJadwalInput));
+        voiceJadwalBtn.addEventListener('click', () => startSpeechRecognition(aiJadwalInput, true));
+        scanJadwalInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], aiJadwalInput, true));
+        uploadJadwalInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], aiJadwalInput, true));
         
-        voiceIdeBtn.addEventListener('click', () => startSpeechRecognition(ideInput));
-        scanIdeInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], ideInput));
-        uploadIdeInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], ideInput));
+        voiceIdeBtn.addEventListener('click', () => startSpeechRecognition(ideInput, false));
+        scanIdeInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], ideInput, false));
+        uploadIdeInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], ideInput, false));
 
-
-        processAiJadwalBtn.addEventListener('click', async () => {
-             const userInput = aiJadwalInput.value.trim();
-             if (!userInput) {
-                 showToast('Input AI tidak boleh kosong.', 'error');
-                 return;
-             }
-             const prompt = `
+        // New function to process text and fill the schedule form
+        async function processAndFillSchedule(text) {
+            if (!text) {
+                showToast('Tidak ada teks untuk diproses.', 'error');
+                return;
+            }
+            const prompt = `
                 Analisis teks berikut untuk membuat jadwal acara dan ekstrak informasinya ke dalam format JSON. 
-                Teks: "${userInput}"
+                Teks: "${text}"
                 
                 Format JSON yang diharapkan:
                 {
@@ -603,7 +612,9 @@
                      showToast('Gagal memproses respons AI. Coba lagi.', 'error');
                  }
              }
-        });
+        }
+
+        processAiJadwalBtn.addEventListener('click', () => processAndFillSchedule(aiJadwalInput.value));
 
         simpanJadwalBtn.addEventListener('click', async () => {
             const summary = document.getElementById('jadwal-nama').value;
@@ -750,7 +761,7 @@
             showLoader('Menyiapkan database ide...');
             try {
                 const response = await gapi.client.drive.files.list({
-                    q: `mimeType='application/vnd.google-apps-spreadsheet' and name='${SPREADSHEET_NAME}' and trashed=false`,
+                    q: `mimeType='application/vnd.google-apps.spreadsheet' and name='${SPREADSHEET_NAME}' and trashed=false`,
                     fields: 'files(id, name)',
                 });
                 if (response.result.files.length > 0) {
