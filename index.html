@@ -54,7 +54,7 @@
                 <i class="fas fa-sign-out-alt mr-2"></i>Keluar
             </button>
         </div>
-        <p id="auth_status" class="text-center text-sm text-gray-500 mb-6"></p>
+        <p id="auth_status" class="text-center text-sm text-gray-500 mb-6">Silakan hubungkan akun Google Anda untuk menggunakan semua fitur.</p>
 
         <!-- Tabs -->
         <div class="mb-6 border-b border-gray-200">
@@ -98,7 +98,7 @@
                         </button>
                     </div>
 
-                    <button id="simpan-jadwal-btn" class="mt-6 w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-green-600 transition duration-300">
+                    <button id="simpan-jadwal-btn" class="mt-6 w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-green-600 transition duration-300 disabled:bg-gray-400" disabled>
                         <i class="fas fa-save mr-2"></i>Simpan Jadwal
                     </button>
                 </div>
@@ -146,7 +146,7 @@
                         <input type="file" id="image-ide-input" class="hidden" accept="image/*">
                     </div>
 
-                    <button id="simpan-ide-btn" class="mt-6 w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-green-600 transition duration-300">
+                    <button id="simpan-ide-btn" class="mt-6 w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-green-600 transition duration-300 disabled:bg-gray-400" disabled>
                         <i class="fas fa-save mr-2"></i>Simpan Ide
                     </button>
                 </div>
@@ -330,8 +330,7 @@
                     console.error(resp);
                     return;
                 }
-                // FIX: Manually set the token on the gapi client after successful authentication.
-                gapi.client.setToken(resp);
+                gapi.client.setToken({ 'access_token': resp.access_token });
                 updateUiOnAuth(true);
                 await onAuthenticated();
             };
@@ -358,16 +357,27 @@
                 authorizeButton.classList.add('hidden');
                 signoutButton.classList.remove('hidden');
                 authStatus.textContent = 'Terhubung dengan Akun Google.';
+                // FIX: Enable save buttons on successful sign-in
+                simpanJadwalBtn.disabled = false;
+                simpanIdeBtn.disabled = false;
             } else {
                 authorizeButton.classList.remove('hidden');
                 signoutButton.classList.add('hidden');
                 authStatus.textContent = 'Silakan hubungkan akun Google Anda untuk menggunakan semua fitur.';
                 jadwalList.innerHTML = '<tr><td colspan="5" class="text-center p-4">Hubungkan akun Google untuk melihat jadwal.</td></tr>';
                 ideList.innerHTML = '<p class="text-center col-span-full">Hubungkan akun Google untuk melihat ide.</p>';
+                // FIX: Disable save buttons on sign-out
+                simpanJadwalBtn.disabled = true;
+                simpanIdeBtn.disabled = true;
             }
         }
 
         async function onAuthenticated() {
+            if (!gapi.client.getToken() || !gapi.client.getToken().access_token) {
+                console.error("Authentication callback succeeded, but token is not set on gapi client!");
+                showToast("Terjadi kesalahan internal saat otentikasi.", "error");
+                return;
+            }
             showToast('Berhasil terhubung dengan Google!');
             await findOrCreateSpreadsheet();
             await loadJadwal('today');
@@ -559,9 +569,11 @@
 
                 const events = response.result.items;
                 if (events && events.length > 0) {
+                    jadwalList.innerHTML = ''; // Clear previous entries
                     events.forEach(event => {
                         const start = event.start.dateTime || event.start.date;
-                        const date = new Date(start).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                        // EDIT: Change date format to dd/mm/yyyy
+                        const date = new Date(start).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
                         const time = event.start.dateTime ? new Date(start).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Seharian';
                         
                         const tr = document.createElement('tr');
@@ -691,18 +703,21 @@
                 });
                 const rows = response.result.values || [];
                 if (rows.length > 0) {
+                    ideList.innerHTML = ''; // Clear previous entries
                     rows.reverse().forEach(row => { // Show newest first
                         const [id, ide, kategori, timestamp] = row;
                         if (!ide) return; // Skip empty rows
                         const card = document.createElement('div');
                         card.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col';
+                        // EDIT: Change date format to dd/mm/yyyy and add time
+                        const formattedTimestamp = `${new Date(timestamp).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'})} ${new Date(timestamp).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'})}`;
                         card.innerHTML = `
                             <p class="text-gray-800 mb-3 flex-grow">${ide}</p>
                             <div class="flex flex-wrap gap-2 mb-4">
                                 ${kategori ? kategori.split(',').map(k => `<span class="bg-indigo-100 text-indigo-800 text-xs font-medium px-2.5 py-0.5 rounded-full">${k.trim()}</span>`).join('') : ''}
                             </div>
                             <div class="flex justify-between items-center text-xs text-gray-500 pt-2 border-t">
-                                <span>${new Date(timestamp).toLocaleString('id-ID')}</span>
+                                <span>${formattedTimestamp}</span>
                                 <div class="space-x-3">
                                     <button class="hover:text-indigo-600" title="Kembangkan dengan AI"><i class="fas fa-magic"></i></button>
                                     <button class="hover:text-blue-600" title="Edit"><i class="fas fa-edit"></i></button>
