@@ -17,6 +17,10 @@
             background-color: #4f46e5;
             color: white;
         }
+        .tab-inactive {
+            background-color: #e5e7eb; /* bg-gray-200 */
+            color: #4b5563; /* text-gray-600 */
+        }
         .modal-backdrop {
             background-color: rgba(0, 0, 0, 0.5);
         }
@@ -72,10 +76,10 @@
 
         <!-- Tabs -->
         <div class="mb-8 p-1.5 bg-gray-200 rounded-xl flex justify-center space-x-2">
-            <button id="tab-jadwal" class="w-full py-3 px-4 rounded-lg font-semibold text-gray-600 transition-all duration-300 tab-active">
+            <button id="tab-jadwal" class="w-full py-3 px-4 rounded-lg font-semibold transition-all duration-300 tab-active">
                 <i class="fas fa-calendar-alt mr-2"></i>Pembuat Jadwal
             </button>
-            <button id="tab-ide" class="w-full py-3 px-4 rounded-lg font-semibold text-gray-600 transition-all duration-300">
+            <button id="tab-ide" class="w-full py-3 px-4 rounded-lg font-semibold transition-all duration-300 tab-inactive">
                 <i class="fas fa-lightbulb mr-2"></i>Pencatat Ide
             </button>
         </div>
@@ -260,6 +264,15 @@
         const ideList = document.getElementById('ide-list');
         const authHelpIcon = document.getElementById('auth-help-icon');
         const authHelpPopup = document.getElementById('auth-help-popup');
+        // Jadwal AI Buttons
+        const voiceJadwalBtn = document.getElementById('voice-jadwal-btn');
+        const scanJadwalInput = document.getElementById('scan-jadwal-input');
+        const uploadJadwalInput = document.getElementById('upload-jadwal-input');
+        // Ide AI Buttons
+        const voiceIdeBtn = document.getElementById('voice-ide-btn');
+        const scanIdeInput = document.getElementById('scan-ide-input');
+        const uploadIdeInput = document.getElementById('upload-ide-input');
+        const ideInput = document.getElementById('ide-input');
 
         // --- Helper Functions ---
         function showToast(message, type = 'success') {
@@ -268,7 +281,7 @@
             toast.classList.remove('hidden');
             setTimeout(() => {
                 toast.classList.add('hidden');
-            }, 5000); // Increased duration for error messages
+            }, 5000);
         }
         
         function showLoader(text = 'Memproses...') {
@@ -431,15 +444,20 @@
             const tabs = [tabJadwal, tabIde];
             const contents = [jadwalContent, ideContent];
             
-            tabs.forEach(t => t.classList.remove('tab-active'));
+            tabs.forEach(t => {
+                t.classList.remove('tab-active', 'tab-inactive');
+                t.classList.add('tab-inactive');
+            });
             contents.forEach(c => c.classList.add('hidden'));
 
             if (tabName === 'jadwal') {
                 jadwalContent.classList.remove('hidden');
                 tabJadwal.classList.add('tab-active');
+                tabJadwal.classList.remove('tab-inactive');
             } else {
                 ideContent.classList.remove('hidden');
                 tabIde.classList.add('tab-active');
+                tabIde.classList.remove('tab-inactive');
             }
         }
 
@@ -449,7 +467,7 @@
                 checkApiKey();
                 return null;
             }
-            showLoader('AI sedang berpikir...');
+            showLoader('AI sedang memproses gambar...');
             const model = imageBase64 ? 'gemini-pro-vision' : 'gemini-pro';
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
             let parts = [{ text: prompt }];
@@ -477,6 +495,71 @@
             }
         }
         
+        // --- AI Input Handlers ---
+
+        function startSpeechRecognition(targetInput) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                showToast('Browser Anda tidak mendukung pengenalan suara.', 'error');
+                return;
+            }
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'id-ID';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = () => {
+                showToast('Mendengarkan...', 'success');
+            };
+
+            recognition.onresult = (event) => {
+                const speechResult = event.results[0][0].transcript;
+                targetInput.value = speechResult;
+                showToast('Transkripsi berhasil.', 'success');
+            };
+
+            recognition.onspeechend = () => {
+                recognition.stop();
+            };
+
+            recognition.onerror = (event) => {
+                showToast(`Error pengenalan suara: ${event.error}`, 'error');
+            };
+
+            recognition.start();
+        }
+
+        async function handleImageUpload(file, targetInput) {
+            if (!file) return;
+            if (!geminiApiKey) {
+                showToast('Silakan masukkan Gemini API Key Anda terlebih dahulu.', 'error');
+                checkApiKey();
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const base64Data = reader.result.split(',')[1];
+                const prompt = "Transkripsikan semua teks yang ada di gambar ini dalam bahasa asli tulisan tersebut.";
+                const transcribedText = await callGemini(prompt, base64Data);
+                if (transcribedText) {
+                    targetInput.value = transcribedText;
+                    showToast('Gambar berhasil ditranskripsi oleh AI.', 'success');
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        voiceJadwalBtn.addEventListener('click', () => startSpeechRecognition(aiJadwalInput));
+        scanJadwalInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], aiJadwalInput));
+        uploadJadwalInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], aiJadwalInput));
+        
+        voiceIdeBtn.addEventListener('click', () => startSpeechRecognition(ideInput));
+        scanIdeInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], ideInput));
+        uploadIdeInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], ideInput));
+
+
         processAiJadwalBtn.addEventListener('click', async () => {
              const userInput = aiJadwalInput.value.trim();
              if (!userInput) {
@@ -502,7 +585,9 @@
                 - Jika tahun tidak disebutkan, asumsikan tahun ini.
                 - Jika ada informasi yang tidak ditemukan, isi dengan string kosong "".
              `;
+             showLoader('AI sedang memproses teks...');
              const resultText = await callGemini(prompt);
+             hideLoader();
              if (resultText) {
                  try {
                      const cleanedJsonString = resultText.replace(/```json|```/g, '').trim();
@@ -665,7 +750,7 @@
             showLoader('Menyiapkan database ide...');
             try {
                 const response = await gapi.client.drive.files.list({
-                    q: `mimeType='application/vnd.google-apps.spreadsheet' and name='${SPREADSHEET_NAME}' and trashed=false`,
+                    q: `mimeType='application/vnd.google-apps-spreadsheet' and name='${SPREADSHEET_NAME}' and trashed=false`,
                     fields: 'files(id, name)',
                 });
                 if (response.result.files.length > 0) {
