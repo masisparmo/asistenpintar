@@ -515,8 +515,8 @@
                 return null;
             }
             showLoader('AI sedang memproses...');
-            // FIX: Use the correct model name for vision capabilities.
-            const model = imageBase64 ? 'gemini-1.5-flash-latest' : 'gemini-pro';
+            // FIX: Use the latest flash model for both text and vision
+            const model = 'gemini-2.5-flash-preview-05-20';
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
             
             let parts = [{ text: prompt }];
