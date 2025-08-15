@@ -26,9 +26,17 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        #config-warning {
+            display: none;
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
+
+    <!-- Config Warning -->
+    <div id="config-warning" class="fixed inset-x-0 top-0 z-50 bg-red-600 text-white text-center p-3 shadow-lg">
+        <strong>PENTING:</strong> Harap konfigurasikan <strong>CLIENT_ID</strong> dan <strong>API_KEY</strong> Anda di dalam kode untuk menjalankan aplikasi.
+    </div>
 
     <!-- Main Container -->
     <div class="container mx-auto p-4 md:p-6 max-w-7xl">
@@ -194,24 +202,22 @@
         let spreadsheetId = null;
 
         // --- Config (Global) ---
-        // PENTING: Ganti nilai placeholder di bawah ini dengan kredensial Anda sendiri dari Google Cloud Console.
-        const CLIENT_ID = '596843408688-ltqcfnon5lkvrq1b0rqav22jh8b4g6ni.apps.googleusercontent.com'; 
-        const API_KEY = 'YOUR_API_KEY'; 
+        // ===============================================================================================
+        // PENTING: Ganti nilai placeholder di bawah ini dengan kredensial Anda dari Google Cloud Console.
+        // ===============================================================================================
+        const CLIENT_ID = '596843408688-ltqcfnon5lkvrq1b0rqav22jh8b4g6ni.apps.googleusercontent.com'; // Anda sudah mengisi ini
+        const API_KEY = 'AIzaSyCArBeO-t04421B82s0TjmmqB8ZE_XbFck'; // Anda sudah mengisi ini
+        // ===============================================================================================
+        
         const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest", "https://www.googleapis.com/discovery/v1/apis/sheets/v4/rest", "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
         const SCOPES = "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file";
         const SPREADSHEET_NAME = 'AsistenPintar_DatabaseIde';
 
         /**
          * Callback function for Google Identity Services library.
-         * This function is now in the global scope to be accessible by the script's onload attribute.
          */
         function gisInit() {
-            if (CLIENT_ID === 'YOUR_CLIENT_ID') {
-                console.error("PENTING: CLIENT_ID belum diatur. Silakan konfigurasikan di dalam kode.");
-                // We can't show a toast here yet as the DOM might not be ready.
-                // The check in initializeGapiClient will handle user notification.
-                return;
-            }
+            // The check for placeholder keys is now done in DOMContentLoaded
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
                 scope: SCOPES,
@@ -223,6 +229,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         // --- DOM Elements ---
+        const configWarning = document.getElementById('config-warning');
         const apiKeyModal = document.getElementById('api-key-modal');
         const apiKeyInput = document.getElementById('api-key-input');
         const saveApiKeyBtn = document.getElementById('save-api-key-btn');
@@ -230,30 +237,32 @@
         const loaderText = document.getElementById('loader-text');
         const toast = document.getElementById('toast');
         const toastMessage = document.getElementById('toast-message');
-
         const authorizeButton = document.getElementById('authorize_button');
         const signoutButton = document.getElementById('signout_button');
         const authStatus = document.getElementById('auth_status');
-
         const tabJadwal = document.getElementById('tab-jadwal');
         const tabIde = document.getElementById('tab-ide');
         const jadwalContent = document.getElementById('jadwal-content');
         const ideContent = document.getElementById('ide-content');
-        
         const aiJadwalInput = document.getElementById('ai-jadwal-input');
         const processAiJadwalBtn = document.getElementById('process-ai-jadwal-btn');
         const simpanJadwalBtn = document.getElementById('simpan-jadwal-btn');
         const jadwalList = document.getElementById('jadwal-list');
         const jadwalFilterBtns = document.querySelectorAll('.jadwal-filter-btn');
-
         const simpanIdeBtn = document.getElementById('simpan-ide-btn');
         const ideList = document.getElementById('ide-list');
 
         // --- Initialization ---
         function initializeApp() {
+            // CRITICAL: Check for placeholder keys first.
+            if (API_KEY === 'YOUR_API_KEY' || CLIENT_ID.includes('YOUR_CLIENT_ID')) {
+                configWarning.style.display = 'block';
+                console.error("PENTING: API_KEY atau CLIENT_ID belum diatur.");
+                return; // Stop the app from initializing further.
+            }
+
             checkApiKey(); // For Gemini
             gapi.load('client', initializeGapiClient);
-            // gisInit() is now called by the script's onload attribute, not here.
         }
 
         function checkApiKey() {
@@ -274,7 +283,6 @@
             }
         });
         
-        // --- Toast Notification ---
         function showToast(message, type = 'success') {
             toastMessage.textContent = message;
             toast.className = `fixed bottom-5 right-5 text-white py-2 px-5 rounded-lg shadow-lg transition-opacity duration-300 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
@@ -284,7 +292,6 @@
             }, 4000);
         }
         
-        // --- Loader ---
         function showLoader(text = 'Memproses...') {
             loaderText.textContent = text;
             loaderModal.classList.remove('hidden');
@@ -294,19 +301,18 @@
             loaderModal.classList.add('hidden');
         }
 
-        // --- Google API Initialization ---
         async function initializeGapiClient() {
-            if (API_KEY === 'YOUR_API_KEY' || CLIENT_ID === 'YOUR_CLIENT_ID') {
-                showToast('Harap konfigurasikan Google CLIENT_ID & API_KEY Anda di dalam kode.', 'error');
-                console.error("PENTING: API_KEY atau CLIENT_ID belum diatur.");
-                return;
+            try {
+                await gapi.client.init({
+                    apiKey: API_KEY,
+                    discoveryDocs: DISCOVERY_DOCS,
+                });
+                gapiInited = true;
+                maybeEnableButtons();
+            } catch (error) {
+                console.error("Error initializing GAPI client:", error);
+                showToast("Gagal menginisialisasi Google API. Periksa API Key Anda.", "error");
             }
-            await gapi.client.init({
-                apiKey: API_KEY,
-                discoveryDocs: DISCOVERY_DOCS,
-            });
-            gapiInited = true;
-            maybeEnableButtons();
         }
 
         function maybeEnableButtons() {
@@ -315,10 +321,8 @@
             }
         }
         
-        // Listen for the custom event that gisInit will fire
         document.addEventListener('gisLoaded', maybeEnableButtons);
 
-        // --- Authentication ---
         authorizeButton.addEventListener('click', () => {
             tokenClient.callback = async (resp) => {
                 if (resp.error !== undefined) {
@@ -326,6 +330,8 @@
                     console.error(resp);
                     return;
                 }
+                // FIX: Manually set the token on the gapi client after successful authentication.
+                gapi.client.setToken(resp);
                 updateUiOnAuth(true);
                 await onAuthenticated();
             };
@@ -363,12 +369,11 @@
 
         async function onAuthenticated() {
             showToast('Berhasil terhubung dengan Google!');
-            await findOrCreateSpreadsheet(); // Do this first to get spreadsheetId
+            await findOrCreateSpreadsheet();
             await loadJadwal('today');
             await loadIde();
         }
 
-        // --- Tab Navigation ---
         tabJadwal.addEventListener('click', () => switchTab('jadwal'));
         tabIde.addEventListener('click', () => switchTab('ide'));
 
@@ -386,7 +391,6 @@
             }
         }
 
-        // --- Gemini AI Integration ---
         async function callGemini(prompt, imageBase64 = null) {
             if (!geminiApiKey) {
                 showToast('Silakan masukkan Gemini API Key Anda terlebih dahulu.', 'error');
@@ -394,32 +398,22 @@
                 return null;
             }
             showLoader('AI sedang berpikir...');
-
             const model = imageBase64 ? 'gemini-pro-vision' : 'gemini-pro';
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`;
-            
             let parts = [{ text: prompt }];
             if (imageBase64) {
-                parts.push({
-                    inline_data: {
-                        mime_type: "image/jpeg",
-                        data: imageBase64
-                    }
-                });
+                parts.push({ inline_data: { mime_type: "image/jpeg", data: imageBase64 } });
             }
-
             try {
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts }] })
                 });
-
                 if (!response.ok) {
                     const error = await response.json();
                     throw new Error(error.error.message);
                 }
-
                 const result = await response.json();
                 return result.candidates[0].content.parts[0].text;
             } catch (error) {
@@ -431,7 +425,6 @@
             }
         }
         
-        // --- Jadwal Feature ---
         processAiJadwalBtn.addEventListener('click', async () => {
              const userInput = aiJadwalInput.value.trim();
              if (!userInput) {
