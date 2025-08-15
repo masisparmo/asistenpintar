@@ -289,10 +289,15 @@
                 console.log("GAPI client initialized.");
                 loadGisScript();
             } catch (error) {
-                console.error("Error initializing GAPI client:", error);
-                // FIX: More robust error handling to prevent crash and give better feedback.
+                // EDIT: Added more detailed error logging
+                console.error("--- DETAIL GALAT INISIALISASI GAPI ---");
+                console.error("Objek Galat Penuh:", error);
+                console.error("URL Saat Ini (Referer):", window.location.href);
+
                 let detailedMessage = "Periksa API_KEY Anda dan pastikan domain Anda diizinkan di Google Cloud Console.";
-                if (error && error.body) {
+                if (error && error.result && error.result.error && error.result.error.message) {
+                    detailedMessage = error.result.error.message;
+                } else if (error && error.body) {
                     try {
                         const errorDetails = JSON.parse(error.body);
                         if (errorDetails.error && errorDetails.error.message) {
@@ -302,7 +307,7 @@
                         // Body is not a valid JSON, use the generic message.
                     }
                 }
-                showToast(`Gagal menginisialisasi Google API. ${detailedMessage}`, "error");
+                showToast(`Gagal memuat Google API: ${detailedMessage}`, "error");
             }
         }
 
