@@ -881,7 +881,7 @@
             try {
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: spreadsheetId,
-                    range: 'A:E', // Read up to column E for row index
+                    range: 'A2:E', // Read up to column E for row index
                 });
                 const rows = response.result.values || [];
                 if (rows.length > 0) {
@@ -892,7 +892,10 @@
                         if (!ide) return;
                         const card = document.createElement('div');
                         card.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col';
-                        const formattedTimestamp = `${new Date(timestamp).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'})} ${new Date(timestamp).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'})}`;
+                        const date = new Date(timestamp);
+                        const formattedTimestamp = !isNaN(date) 
+                            ? `${date.toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'})} ${date.toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'})}`
+                            : '-';
                         card.innerHTML = `
                             <p class="text-gray-800 mb-3 flex-grow">${ide}</p>
                             <div class="flex flex-wrap gap-2 mb-4">
