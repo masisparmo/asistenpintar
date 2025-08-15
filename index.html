@@ -29,6 +29,9 @@
         #config-warning {
             display: none;
         }
+        #auth-help-popup {
+            transition: opacity 0.3s ease-in-out;
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -46,13 +49,23 @@
         </header>
 
         <!-- Auth Button -->
-        <div class="flex justify-center mb-6">
+        <div class="relative flex justify-center items-center mb-6">
             <button id="authorize_button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 disabled:bg-gray-400" disabled>
                 <i class="fab fa-google mr-2"></i>Hubungkan ke Akun Google
             </button>
             <button id="signout_button" class="hidden bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-red-600 transition duration-300 ml-4">
                 <i class="fas fa-sign-out-alt mr-2"></i>Keluar
             </button>
+            <span id="auth-help-icon" class="ml-3 text-gray-500 cursor-pointer hover:text-indigo-600">
+                <i class="fas fa-question-circle fa-lg"></i>
+            </span>
+             <!-- Help Popup -->
+            <div id="auth-help-popup" class="hidden absolute top-full mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-xl p-4 text-sm text-gray-700 z-10 opacity-0">
+                <h4 class="font-bold mb-2">Mengapa perlu terhubung?</h4>
+                <p class="mb-2">Aplikasi ini memerlukan izin Anda untuk menyimpan jadwal ke <strong>Google Calendar</strong> dan mencatat ide ke <strong>Google Sheets</strong> milik Anda.</p>
+                <p class="font-bold text-green-600"><i class="fas fa-lock mr-1"></i> Aman & Pribadi</p>
+                <p>Semua data langsung disimpan di akun Google Anda. Aplikasi ini tidak memiliki server dan tidak menyimpan data Anda di tempat lain.</p>
+            </div>
         </div>
         <p id="auth_status" class="text-center text-sm text-gray-500 mb-6">Silakan hubungkan akun Google Anda untuk menggunakan semua fitur.</p>
 
@@ -251,6 +264,8 @@
         const jadwalFilterBtns = document.querySelectorAll('.jadwal-filter-btn');
         const simpanIdeBtn = document.getElementById('simpan-ide-btn');
         const ideList = document.getElementById('ide-list');
+        const authHelpIcon = document.getElementById('auth-help-icon');
+        const authHelpPopup = document.getElementById('auth-help-popup');
 
         // --- Initialization ---
         function initializeApp() {
@@ -263,6 +278,14 @@
 
             checkApiKey(); // For Gemini
             gapi.load('client', initializeGapiClient);
+
+            // FIX: Add a timeout to check if Google's libraries loaded successfully.
+            setTimeout(() => {
+                if (!gapiInited || !gisInited) {
+                    console.error("Gagal memuat Google API. Periksa koneksi atau konfigurasi API Key/Client ID Anda.");
+                    showToast("Gagal memuat Google API. Coba muat ulang halaman.", "error");
+                }
+            }, 10000); // 10 seconds timeout
         }
 
         function checkApiKey() {
@@ -532,7 +555,7 @@
         async function loadJadwal(period) {
             if (!gapi.client.getToken()) return;
             showLoader('Memuat jadwal...');
-            jadwalList.innerHTML = '';
+            jadwalList.innerHTML = '<tr><td colspan="5" class="text-center p-4">Memuat...</td></tr>';
 
             const now = new Date();
             let timeMin, timeMax;
@@ -572,7 +595,6 @@
                     jadwalList.innerHTML = ''; // Clear previous entries
                     events.forEach(event => {
                         const start = event.start.dateTime || event.start.date;
-                        // EDIT: Change date format to dd/mm/yyyy
                         const date = new Date(start).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
                         const time = event.start.dateTime ? new Date(start).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Seharian';
                         
@@ -695,7 +717,7 @@
         async function loadIde() {
             if (!spreadsheetId) return;
             showLoader('Memuat ide...');
-            ideList.innerHTML = '';
+            ideList.innerHTML = '<p class="text-center col-span-full">Memuat...</p>';
             try {
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: spreadsheetId,
@@ -709,7 +731,6 @@
                         if (!ide) return; // Skip empty rows
                         const card = document.createElement('div');
                         card.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col';
-                        // EDIT: Change date format to dd/mm/yyyy and add time
                         const formattedTimestamp = `${new Date(timestamp).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'})} ${new Date(timestamp).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'})}`;
                         card.innerHTML = `
                             <p class="text-gray-800 mb-3 flex-grow">${ide}</p>
@@ -737,6 +758,17 @@
                 hideLoader();
             }
         }
+
+        // --- Help Popup Logic ---
+        authHelpIcon.addEventListener('mouseenter', () => {
+            authHelpPopup.classList.remove('hidden');
+            setTimeout(() => authHelpPopup.classList.remove('opacity-0'), 10);
+        });
+
+        authHelpIcon.addEventListener('mouseleave', () => {
+            authHelpPopup.classList.add('opacity-0');
+            setTimeout(() => authHelpPopup.classList.add('hidden'), 300);
+        });
 
         // --- Start App ---
         initializeApp();
