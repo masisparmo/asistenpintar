@@ -14,9 +14,8 @@
             font-family: 'Inter', sans-serif;
         }
         .tab-active {
-            border-bottom-color: #4f46e5;
-            color: #4f46e5;
-            font-weight: 600;
+            background-color: #4f46e5;
+            color: white;
         }
         .modal-backdrop {
             background-color: rgba(0, 0, 0, 0.5);
@@ -72,15 +71,13 @@
         <p id="auth_status" class="text-center text-sm text-gray-500 mb-6">Silakan hubungkan akun Google Anda untuk menggunakan semua fitur.</p>
 
         <!-- Tabs -->
-        <div class="mb-6 border-b border-gray-200">
-            <nav class="flex space-x-8" aria-label="Tabs">
-                <button id="tab-jadwal" class="py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 tab-active">
-                    <i class="fas fa-calendar-alt mr-2"></i>Pembuat Jadwal
-                </button>
-                <button id="tab-ide" class="py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                    <i class="fas fa-lightbulb mr-2"></i>Pencatat Ide
-                </button>
-            </nav>
+        <div class="mb-8 p-1.5 bg-gray-200 rounded-xl flex justify-center space-x-2">
+            <button id="tab-jadwal" class="w-full py-3 px-4 rounded-lg font-semibold text-gray-600 transition-all duration-300 tab-active">
+                <i class="fas fa-calendar-alt mr-2"></i>Pembuat Jadwal
+            </button>
+            <button id="tab-ide" class="w-full py-3 px-4 rounded-lg font-semibold text-gray-600 transition-all duration-300">
+                <i class="fas fa-lightbulb mr-2"></i>Pencatat Ide
+            </button>
         </div>
 
         <!-- Content Area -->
@@ -98,18 +95,18 @@
                     </div>
                     <textarea id="jadwal-catatan" placeholder="Catatan/Notes..." class="w-full mt-4 p-3 border border-gray-300 rounded-lg" rows="3"></textarea>
                     
-                    <div class="mt-4">
-                        <h3 class="font-medium mb-2">Input Cerdas (AI)</h3>
-                        <div class="relative">
-                            <input id="ai-jadwal-input" type="text" placeholder="Contoh: Meeting dengan klien besok jam 10 pagi di kantor" class="w-full p-3 border border-gray-300 rounded-lg pr-24">
-                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 space-x-2">
-                                <button id="voice-jadwal-btn" class="text-gray-500 hover:text-indigo-600"><i class="fas fa-microphone"></i></button>
-                                <label for="image-jadwal-input" class="cursor-pointer text-gray-500 hover:text-indigo-600"><i class="fas fa-camera"></i></label>
-                                <input type="file" id="image-jadwal-input" class="hidden" accept="image/*">
-                            </div>
+                    <div class="mt-6 pt-6 border-t">
+                        <h3 class="font-medium mb-4 text-center text-lg">Input Cerdas (AI)</h3>
+                        <textarea id="ai-jadwal-input" placeholder="Atau ketik perintah di sini... Contoh: Meeting dengan klien besok jam 10 pagi di kantor" class="w-full p-3 border border-gray-300 rounded-lg mb-4" rows="2"></textarea>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <button id="voice-jadwal-btn" class="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition duration-300 flex items-center justify-center"><i class="fas fa-microphone mr-2"></i>Input Suara</button>
+                            <label for="scan-jadwal-input" class="w-full bg-purple-500 text-white py-3 px-4 rounded-lg hover:bg-purple-600 transition duration-300 flex items-center justify-center cursor-pointer"><i class="fas fa-camera mr-2"></i>Scan Tulisan</label>
+                            <input type="file" id="scan-jadwal-input" class="hidden" accept="image/*" capture="environment">
+                            <label for="upload-jadwal-input" class="w-full bg-teal-500 text-white py-3 px-4 rounded-lg hover:bg-teal-600 transition duration-300 flex items-center justify-center cursor-pointer"><i class="fas fa-upload mr-2"></i>Upload Gambar</label>
+                            <input type="file" id="upload-jadwal-input" class="hidden" accept="image/*">
                         </div>
-                         <button id="process-ai-jadwal-btn" class="mt-2 w-full bg-indigo-500 text-white py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300">
-                            <i class="fas fa-cogs mr-2"></i>Proses dengan AI
+                         <button id="process-ai-jadwal-btn" class="mt-3 w-full bg-indigo-500 text-white py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300">
+                            <i class="fas fa-cogs mr-2"></i>Proses Perintah Teks dengan AI
                         </button>
                     </div>
 
@@ -155,10 +152,12 @@
                     <textarea id="ide-input" placeholder="Tuliskan ide brilian Anda di sini..." class="w-full p-3 border border-gray-300 rounded-lg" rows="4"></textarea>
                     <input id="ide-kategori" type="text" placeholder="Kategori/Keyword (pisahkan dengan koma)" class="w-full mt-4 p-3 border border-gray-300 rounded-lg">
                     
-                    <div class="mt-4 flex items-center space-x-4">
-                        <button id="voice-ide-btn" class="flex-1 text-gray-600 bg-gray-200 hover:bg-gray-300 py-2 px-4 rounded-lg transition duration-300"><i class="fas fa-microphone mr-2"></i>Rekam Suara</button>
-                        <label for="image-ide-input" class="flex-1 text-center cursor-pointer text-gray-600 bg-gray-200 hover:bg-gray-300 py-2 px-4 rounded-lg transition duration-300"><i class="fas fa-camera mr-2"></i>Scan/Upload</label>
-                        <input type="file" id="image-ide-input" class="hidden" accept="image/*">
+                    <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <button id="voice-ide-btn" class="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition duration-300 flex items-center justify-center"><i class="fas fa-microphone mr-2"></i>Rekam Suara</button>
+                        <label for="scan-ide-input" class="w-full bg-purple-500 text-white py-3 px-4 rounded-lg hover:bg-purple-600 transition duration-300 flex items-center justify-center cursor-pointer"><i class="fas fa-camera mr-2"></i>Scan Tulisan</label>
+                        <input type="file" id="scan-ide-input" class="hidden" accept="image/*" capture="environment">
+                        <label for="upload-ide-input" class="w-full bg-teal-500 text-white py-3 px-4 rounded-lg hover:bg-teal-600 transition duration-300 flex items-center justify-center cursor-pointer"><i class="fas fa-upload mr-2"></i>Upload Gambar</label>
+                        <input type="file" id="upload-ide-input" class="hidden" accept="image/*">
                     </div>
 
                     <button id="simpan-ide-btn" class="mt-6 w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-green-600 transition duration-300 disabled:bg-gray-400" disabled>
@@ -174,6 +173,15 @@
                 </div>
             </div>
         </main>
+
+        <footer class="text-center mt-10 text-gray-500 text-sm">
+            <p>Copyright &copy; ISPARMO 2025</p>
+            <p>
+                <a href="https://asistenpintar.isparmo.com/terms" target="_blank" class="hover:underline">Terms of Service</a>
+                <span class="mx-2">&bull;</span>
+                <a href="https://asistenpintar.isparmo.com/privacy" target="_blank" class="hover:underline">Privacy Policy</a>
+            </p>
+        </footer>
     </div>
 
     <!-- API Key Modal -->
@@ -291,7 +299,6 @@
                 console.log("GAPI client initialized.");
                 loadGisScript();
             } catch (error) {
-                // EDIT: Added more detailed error logging
                 console.error("--- DETAIL GALAT INISIALISASI GAPI ---");
                 console.error("Objek Galat Penuh:", error);
                 console.error("URL Saat Ini (Referer):", window.location.href);
@@ -421,15 +428,17 @@
         tabIde.addEventListener('click', () => switchTab('ide'));
 
         function switchTab(tabName) {
+            const tabs = [tabJadwal, tabIde];
+            const contents = [jadwalContent, ideContent];
+            
+            tabs.forEach(t => t.classList.remove('tab-active'));
+            contents.forEach(c => c.classList.add('hidden'));
+
             if (tabName === 'jadwal') {
                 jadwalContent.classList.remove('hidden');
-                ideContent.classList.add('hidden');
                 tabJadwal.classList.add('tab-active');
-                tabIde.classList.remove('tab-active');
             } else {
-                jadwalContent.classList.add('hidden');
                 ideContent.classList.remove('hidden');
-                tabJadwal.classList.remove('tab-active');
                 tabIde.classList.add('tab-active');
             }
         }
