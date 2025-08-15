@@ -188,7 +188,7 @@
         </footer>
     </div>
 
-    <!-- API Key Modal -->
+    <!-- Modals -->
     <div id="api-key-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
         <div class="bg-white rounded-lg shadow-xl p-8 max-w-lg w-full">
             <h2 class="text-2xl font-bold mb-4">Masukkan Gemini API Key Anda</h2>
@@ -205,7 +205,6 @@
         </div>
     </div>
 
-    <!-- Loader Modal -->
     <div id="loader-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
         <div class="bg-white rounded-lg p-8 flex flex-col items-center">
             <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24 mb-4"></div>
@@ -213,9 +212,53 @@
         </div>
     </div>
     
-    <!-- Notification Toast -->
     <div id="toast" class="hidden fixed bottom-5 right-5 bg-gray-800 text-white py-2 px-5 rounded-lg shadow-lg transition-opacity duration-300">
         <p id="toast-message"></p>
+    </div>
+
+    <!-- Edit Jadwal Modal -->
+    <div id="edit-jadwal-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+        <div class="bg-white rounded-lg shadow-xl p-8 max-w-lg w-full">
+            <h2 class="text-2xl font-bold mb-4">Edit Jadwal</h2>
+            <input type="hidden" id="edit-jadwal-id">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input id="edit-jadwal-nama" type="text" placeholder="Nama Acara/Meeting" class="w-full p-3 border border-gray-300 rounded-lg">
+                <input id="edit-jadwal-tanggal" type="date" class="w-full p-3 border border-gray-300 rounded-lg">
+                <input id="edit-jadwal-jam" type="time" class="w-full p-3 border border-gray-300 rounded-lg">
+                <input id="edit-jadwal-tempat" type="text" placeholder="Tempat" class="w-full p-3 border border-gray-300 rounded-lg">
+            </div>
+            <textarea id="edit-jadwal-catatan" placeholder="Catatan/Notes..." class="w-full mt-4 p-3 border border-gray-300 rounded-lg" rows="3"></textarea>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="cancel-edit-jadwal-btn" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400">Batal</button>
+                <button id="save-edit-jadwal-btn" class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Ide Modal -->
+    <div id="edit-ide-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+        <div class="bg-white rounded-lg shadow-xl p-8 max-w-lg w-full">
+            <h2 class="text-2xl font-bold mb-4">Edit Ide</h2>
+            <input type="hidden" id="edit-ide-row">
+            <textarea id="edit-ide-input" placeholder="Tuliskan ide brilian Anda di sini..." class="w-full p-3 border border-gray-300 rounded-lg" rows="4"></textarea>
+            <input id="edit-ide-kategori" type="text" placeholder="Kategori/Keyword (pisahkan dengan koma)" class="w-full mt-4 p-3 border border-gray-300 rounded-lg">
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="cancel-edit-ide-btn" class="bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400">Batal</button>
+                <button id="save-edit-ide-btn" class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600">Simpan Perubahan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="confirm-delete-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
+        <div class="bg-white rounded-lg shadow-xl p-8 max-w-sm w-full text-center">
+            <h2 class="text-2xl font-bold mb-4">Anda Yakin?</h2>
+            <p id="confirm-delete-text" class="text-gray-600 mb-6">Apakah Anda yakin ingin menghapus item ini?</p>
+            <div class="flex justify-center space-x-4">
+                <button id="cancel-delete-btn" class="bg-gray-300 text-gray-800 font-bold py-2 px-6 rounded-lg hover:bg-gray-400">Batal</button>
+                <button id="confirm-delete-btn" class="bg-red-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-600">Hapus</button>
+            </div>
+        </div>
     </div>
 
 
@@ -273,6 +316,10 @@
         const scanIdeInput = document.getElementById('scan-ide-input');
         const uploadIdeInput = document.getElementById('upload-ide-input');
         const ideInput = document.getElementById('ide-input');
+        // Edit/Delete Modals
+        const editJadwalModal = document.getElementById('edit-jadwal-modal');
+        const editIdeModal = document.getElementById('edit-ide-modal');
+        const confirmDeleteModal = document.getElementById('confirm-delete-modal');
 
         // --- Helper Functions ---
         function showToast(message, type = 'success') {
@@ -510,23 +557,23 @@
             recognition.lang = 'id-ID';
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
+            // FIX: Allow for longer pauses by removing the automatic stop on speechend
+            // recognition.continuous = true; // This can be complex to manage, removing onspeechend is simpler.
 
             recognition.onstart = () => {
                 showToast('Mendengarkan...', 'success');
             };
 
             recognition.onresult = (event) => {
-                const speechResult = event.results[0][0].transcript;
+                const speechResult = event.results[event.results.length - 1][0].transcript;
                 targetInput.value = speechResult;
-                showToast('Transkripsi berhasil.', 'success');
-                // FIX: Automatically process the result for the scheduler
-                if (shouldProcessForSchedule) {
-                    processAndFillSchedule(speechResult);
-                }
             };
 
-            recognition.onspeechend = () => {
-                recognition.stop();
+            recognition.onend = () => {
+                showToast('Rekam suara selesai.', 'success');
+                if (shouldProcessForSchedule && targetInput.value) {
+                    processAndFillSchedule(targetInput.value);
+                }
             };
 
             recognition.onerror = (event) => {
@@ -552,7 +599,6 @@
                 if (transcribedText) {
                     targetInput.value = transcribedText;
                     showToast('Gambar berhasil ditranskripsi oleh AI.', 'success');
-                    // FIX: Automatically process the result for the scheduler
                     if (shouldProcessForSchedule) {
                         processAndFillSchedule(transcribedText);
                     }
@@ -569,7 +615,6 @@
         scanIdeInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], ideInput, false));
         uploadIdeInput.addEventListener('change', (e) => handleImageUpload(e.target.files[0], ideInput, false));
 
-        // New function to process text and fill the schedule form
         async function processAndFillSchedule(text) {
             if (!text) {
                 showToast('Tidak ada teks untuk diproses.', 'error');
@@ -707,7 +752,7 @@
 
                 const events = response.result.items;
                 if (events && events.length > 0) {
-                    jadwalList.innerHTML = ''; // Clear previous entries
+                    jadwalList.innerHTML = '';
                     events.forEach(event => {
                         const start = event.start.dateTime || event.start.date;
                         const date = new Date(start).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -725,8 +770,8 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${event.location || '-'}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${event.description || '-'}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <a href="#" class="text-indigo-600 hover:text-indigo-900">Edit</a>
-                                <a href="#" class="ml-4 text-red-600 hover:text-red-900">Hapus</a>
+                                <button class="edit-jadwal-btn text-indigo-600 hover:text-indigo-900" data-event-id="${event.id}">Edit</button>
+                                <button class="delete-jadwal-btn ml-4 text-red-600 hover:text-red-900" data-event-id="${event.id}">Hapus</button>
                             </td>
                         `;
                         jadwalList.appendChild(tr);
@@ -836,14 +881,15 @@
             try {
                 const response = await gapi.client.sheets.spreadsheets.values.get({
                     spreadsheetId: spreadsheetId,
-                    range: 'A2:D', // Start from row 2 to skip header
+                    range: 'A:E', // Read up to column E for row index
                 });
                 const rows = response.result.values || [];
                 if (rows.length > 0) {
-                    ideList.innerHTML = ''; // Clear previous entries
-                    rows.reverse().forEach(row => { // Show newest first
+                    ideList.innerHTML = '';
+                    rows.reverse().forEach((row, index) => {
+                        const originalIndex = rows.length - index + 1;
                         const [id, ide, kategori, timestamp] = row;
-                        if (!ide) return; // Skip empty rows
+                        if (!ide) return;
                         const card = document.createElement('div');
                         card.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col';
                         const formattedTimestamp = `${new Date(timestamp).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'})} ${new Date(timestamp).toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'})}`;
@@ -855,9 +901,9 @@
                             <div class="flex justify-between items-center text-xs text-gray-500 pt-2 border-t">
                                 <span>${formattedTimestamp}</span>
                                 <div class="space-x-3">
-                                    <button class="hover:text-indigo-600" title="Kembangkan dengan AI"><i class="fas fa-magic"></i></button>
-                                    <button class="hover:text-blue-600" title="Edit"><i class="fas fa-edit"></i></button>
-                                    <button class="hover:text-red-600" title="Hapus"><i class="fas fa-trash"></i></button>
+                                    <button class="kembangkan-ide-btn hover:text-indigo-600" title="Kembangkan dengan AI"><i class="fas fa-magic"></i></button>
+                                    <button class="edit-ide-btn hover:text-blue-600" title="Edit" data-row-index="${originalIndex}"><i class="fas fa-edit"></i></button>
+                                    <button class="delete-ide-btn hover:text-red-600" title="Hapus" data-row-index="${originalIndex}"><i class="fas fa-trash"></i></button>
                                 </div>
                             </div>
                         `;
@@ -873,6 +919,189 @@
                 hideLoader();
             }
         }
+
+        // --- Event Delegation for Edit/Delete ---
+        jadwalList.addEventListener('click', (e) => {
+            if (e.target.closest('.edit-jadwal-btn')) {
+                const eventId = e.target.closest('.edit-jadwal-btn').dataset.eventId;
+                handleEditJadwal(eventId);
+            }
+            if (e.target.closest('.delete-jadwal-btn')) {
+                const eventId = e.target.closest('.delete-jadwal-btn').dataset.eventId;
+                handleDeleteJadwal(eventId);
+            }
+        });
+
+        ideList.addEventListener('click', (e) => {
+            if (e.target.closest('.edit-ide-btn')) {
+                const rowIndex = e.target.closest('.edit-ide-btn').dataset.rowIndex;
+                handleEditIde(rowIndex);
+            }
+            if (e.target.closest('.delete-ide-btn')) {
+                const rowIndex = e.target.closest('.delete-ide-btn').dataset.rowIndex;
+                handleDeleteIde(rowIndex);
+            }
+        });
+
+        // --- Edit/Delete Handlers ---
+        async function handleEditJadwal(eventId) {
+            try {
+                showLoader('Mengambil data acara...');
+                const response = await gapi.client.calendar.events.get({
+                    calendarId: 'primary',
+                    eventId: eventId,
+                });
+                const event = response.result;
+                document.getElementById('edit-jadwal-id').value = event.id;
+                document.getElementById('edit-jadwal-nama').value = event.summary || '';
+                const startDate = new Date(event.start.dateTime || event.start.date);
+                document.getElementById('edit-jadwal-tanggal').value = startDate.toISOString().split('T')[0];
+                document.getElementById('edit-jadwal-jam').value = event.start.dateTime ? startDate.toTimeString().split(' ')[0].substring(0, 5) : '';
+                document.getElementById('edit-jadwal-tempat').value = event.location || '';
+                document.getElementById('edit-jadwal-catatan').value = event.description || '';
+                editJadwalModal.classList.remove('hidden');
+            } catch (error) {
+                showToast('Gagal mengambil data acara.', 'error');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        async function handleEditIde(rowIndex) {
+            try {
+                showLoader('Mengambil data ide...');
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: spreadsheetId,
+                    range: `A${rowIndex}:D${rowIndex}`,
+                });
+                const rowData = response.result.values[0];
+                document.getElementById('edit-ide-row').value = rowIndex;
+                document.getElementById('edit-ide-input').value = rowData[1] || '';
+                document.getElementById('edit-ide-kategori').value = rowData[2] || '';
+                editIdeModal.classList.remove('hidden');
+            } catch (error) {
+                showToast('Gagal mengambil data ide.', 'error');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        function handleDeleteJadwal(eventId) {
+            document.getElementById('confirm-delete-text').textContent = "Apakah Anda yakin ingin menghapus jadwal ini?";
+            confirmDeleteModal.classList.remove('hidden');
+            
+            document.getElementById('confirm-delete-btn').onclick = async () => {
+                try {
+                    showLoader('Menghapus jadwal...');
+                    await gapi.client.calendar.events.delete({
+                        calendarId: 'primary',
+                        eventId: eventId,
+                    });
+                    showToast('Jadwal berhasil dihapus.');
+                    await loadJadwal('today');
+                } catch (error) {
+                    showToast('Gagal menghapus jadwal.', 'error');
+                } finally {
+                    confirmDeleteModal.classList.add('hidden');
+                    hideLoader();
+                }
+            };
+        }
+
+        function handleDeleteIde(rowIndex) {
+            document.getElementById('confirm-delete-text').textContent = "Apakah Anda yakin ingin menghapus ide ini?";
+            confirmDeleteModal.classList.remove('hidden');
+
+            document.getElementById('confirm-delete-btn').onclick = async () => {
+                try {
+                    showLoader('Menghapus ide...');
+                    await gapi.client.sheets.spreadsheets.batchUpdate({
+                        spreadsheetId: spreadsheetId,
+                        resource: {
+                            requests: [{
+                                deleteDimension: {
+                                    range: {
+                                        sheetId: 0, // Assuming first sheet
+                                        dimension: "ROWS",
+                                        startIndex: rowIndex - 1,
+                                        endIndex: rowIndex
+                                    }
+                                }
+                            }]
+                        }
+                    });
+                    showToast('Ide berhasil dihapus.');
+                    await loadIde();
+                } catch (error) {
+                    showToast('Gagal menghapus ide.', 'error');
+                } finally {
+                    confirmDeleteModal.classList.add('hidden');
+                    hideLoader();
+                }
+            };
+        }
+
+        // --- Modal Control ---
+        document.getElementById('cancel-edit-jadwal-btn').addEventListener('click', () => editJadwalModal.classList.add('hidden'));
+        document.getElementById('cancel-edit-ide-btn').addEventListener('click', () => editIdeModal.classList.add('hidden'));
+        document.getElementById('cancel-delete-btn').addEventListener('click', () => confirmDeleteModal.classList.add('hidden'));
+
+        document.getElementById('save-edit-jadwal-btn').addEventListener('click', async () => {
+            const eventId = document.getElementById('edit-jadwal-id').value;
+            const summary = document.getElementById('edit-jadwal-nama').value;
+            const location = document.getElementById('edit-jadwal-tempat').value;
+            const description = document.getElementById('edit-jadwal-catatan').value;
+            const date = document.getElementById('edit-jadwal-tanggal').value;
+            const time = document.getElementById('edit-jadwal-jam').value;
+            const startDateTime = new Date(`${date}T${time}`);
+            const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
+
+            const event = {
+                summary, location, description,
+                start: { dateTime: startDateTime.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+                end: { dateTime: endDateTime.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+            };
+
+            try {
+                showLoader('Menyimpan perubahan...');
+                await gapi.client.calendar.events.update({
+                    calendarId: 'primary',
+                    eventId: eventId,
+                    resource: event
+                });
+                showToast('Jadwal berhasil diperbarui.');
+                editJadwalModal.classList.add('hidden');
+                await loadJadwal('today');
+            } catch (error) {
+                showToast('Gagal memperbarui jadwal.', 'error');
+            } finally {
+                hideLoader();
+            }
+        });
+
+        document.getElementById('save-edit-ide-btn').addEventListener('click', async () => {
+            const rowIndex = document.getElementById('edit-ide-row').value;
+            const ide = document.getElementById('edit-ide-input').value;
+            const kategori = document.getElementById('edit-ide-kategori').value;
+            
+            try {
+                showLoader('Menyimpan perubahan...');
+                await gapi.client.sheets.spreadsheets.values.update({
+                    spreadsheetId: spreadsheetId,
+                    range: `B${rowIndex}:C${rowIndex}`,
+                    valueInputOption: 'USER_ENTERED',
+                    resource: { values: [[ide, kategori]] }
+                });
+                showToast('Ide berhasil diperbarui.');
+                editIdeModal.classList.add('hidden');
+                await loadIde();
+            } catch (error) {
+                showToast('Gagal memperbarui ide.', 'error');
+            } finally {
+                hideLoader();
+            }
+        });
+
 
         // --- Help Popup Logic ---
         authHelpIcon.addEventListener('mouseenter', () => {
